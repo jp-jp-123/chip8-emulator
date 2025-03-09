@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use rand::Rng;
 
 const SCREEN_WIDTH: usize = 64;
 const SCREEN_HEIGHT: usize = 32;
@@ -75,9 +76,9 @@ impl Chip8 {
         self.stack_pointer += 1;
     }
 
-    fn pop(&mut self){
+    fn pop(&mut self) -> u16{
         self.stack_pointer -= 1;
-        self.stack[self.stack_pointer as usize];
+        self.stack[self.stack_pointer as usize]
     }
 
     // vecDeque for stack, just in case they actually work in WebAssembly
@@ -104,6 +105,7 @@ impl Chip8 {
         let op: u16 = self.fetch();
 
         // DECODE & EXECUTE
+        self.execute(op);
         
     }
 
@@ -134,6 +136,7 @@ impl Chip8 {
     }
 
     pub fn execute(&mut self, op: u16){
+        // DECODE
         let nibbles: (u8, u8, u8, u8) = (
             ((op & 0xF000) >> 12) as u8,    // extract the 1st nibble
             ((op & 0x0F00) >> 8) as u8,     // extract the 2nd nibble
@@ -146,6 +149,165 @@ impl Chip8 {
         let n: usize = nibbles.3 as usize;
         let nn: u8 = (op & 0x00FF) as u8;
         let nnn: usize = (op & 0x0FFF) as usize;
+
+        match(nibbles.0, nibbles.1, nibbles.2, nibbles.3){
+            // NOP (0000): DO NOTHING
+            (0, 0, 0, 0) => {
+                return;
+            }
+
+            // CLS (00E0): CLEAR SCREEN
+            (0, 0, 0xE, 0) => {
+                self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
+            }
+
+            // RET (00EE): RETURN FROM SUBROUTINE
+            (0, 0, 0xE, 0xE) => {
+                let return_add: u16 = self.pop();
+                self.pc = return_add;
+            }
+
+            // JMP NNN (1NNN): JUMP TO ADDRESS
+            (0, _, _, _) => {
+                self.pc = nnn as u16;
+            }
+
+            // CALL NNN (2NNN): CALL SUBROUTINE, SIMILAR TO JMP BUT NEEDS TO REMEMBER WHERE IT CAME FROM
+            (2, _, _, _) => {
+                self.push(self.pc);
+                self.pc = nnn as u16
+            }
+
+            // SE Vx, byte (3xnn): SKIP IF VX == NN
+            (3, _, _, _) => {
+                if self.v_reg[x] == nn {
+                    self.pc += 2;
+                }
+            }
+
+            // SNE VX, byte (4xnn): SKIP IF VX != NN
+            (4, _, _, _) => {
+                if self.v_reg[x] != nn {
+                    self.pc += 2;
+                }
+            }   
+            
+            // SE Vx, Vy (5xy0): SKIP IF VX == VY
+            (5, _, _, 0) => {
+                if self.v_reg[x] == self.v_reg[y] {
+                    self.pc += 2;
+                }
+            }
+
+            // LD Vx, byte (6xnn): LOAD Vx = nn
+            (6, _, _, _) => {
+                self.v_reg[x] = nn
+            }
+
+            // ADD Vx, byte (7xnn): ADD Vx = Vx + nn
+            (7, _, _, _) => {
+
+                // self.v_reg[x] += nn;                                                 // panic on overflow
+                // self.v_reg[x] = self.v_reg[x].wrapping_add(nn);                      // silent wrap around on overflow
+                let (sum, overflow) = self.v_reg[x].overflowing_add(nn);      // wrap around on overflow and notifies if it happens
+
+                if overflow {
+                    print!("OVERFLOW")
+                }
+
+                self.v_reg[x] = sum
+                
+            }
+
+            // LD Vx, Vy (8xy0): LOAD Vx = Vy
+            (8, _, _, 0) => {
+                self.v_reg[x] = self.v_reg[y]
+            }
+
+            // OR Vx, Vy (8xy1): Vx = Vx | Vy
+            (8, _, _, 1) => {
+                self.v_reg[x] |= self.v_reg[y];
+            }
+
+            // AND Vx, Vy (8xy2): Vx = Vx & Vy
+            (8, _, _, 2) => {
+                self.v_reg[x] &= self.v_reg[y];
+            }
+
+            // XOR Vx, Vy (8xy3): Vx = Vx ^ Vy
+            (8, _, _, 3) => {
+                self.v_reg[x] ^= self.v_reg[y];
+            }
+
+            // ADD Vx, Vy (8xy4): Vx = Vx + Vy. Set VF for carry
+            (8, _, _, 4) => {
+                let (sum, carry) = self.v_reg[x].overflowing_add(self.v_reg[y]);
+
+                self.v_reg[0xF] = if carry {1} else {0};
+
+                self.v_reg[x] = sum
+            }
+
+            // SUB Vx, Vy (8xy5): Vx = Vx - Vy, SET VF for borrow
+            (8, _, _, 5) => {
+                let (diff, borrow) = self.v_reg[x].overflowing_sub(self.v_reg[y]);
+
+                self.v_reg[0xF] = if borrow {0} else {1};   // Note that SET VF = NOT borrow
+
+                self.v_reg[x] = diff
+            }
+
+            // Vx SHR 1 (8xy6): SET VF for Vx's least significant bit, then SET Vx = Vx >> 1 (basically Vx / 2), 
+            (8, _, _, 6) => {
+                self.v_reg[0xF] = self.v_reg[x] & 0x1;
+
+                self.v_reg[x] >>= 1
+            }
+
+            // SUBN Vx, Vy (8xy7): Vx = Vy - Vx, SET VF for borrow
+            (8, _, _, 7) => {
+                let (diff, borrow) = self.v_reg[y].overflowing_sub(self.v_reg[x]);
+
+                self.v_reg[0xF] = if borrow {0} else {1};   // Note that SET VF = NOT borrow
+
+                self.v_reg[x] = diff
+            }
+
+            // Vx SHL 1 (8xyE): SET VF = Vx's most significant bit, then SET Vx = Vx << 1 (basically Vx * 2)
+            (8, _, _, 0xE) => {
+                self.v_reg[0xF] = (self.v_reg[x] & 0x80) >> 7;
+
+                self.v_reg[x] <<= 1
+            }
+            
+            // SNE Vx, Vy (9xy0): SKIP NEXT instruction Vx != Vy
+            (9, _, _, 0) => {
+                if self.v_reg[x] != self.v_reg[y] {
+                    self.pc += 2;
+                }
+            }
+
+            // LD I, addr (Annn): LOAD I (index register) = nnn
+            (0xA, _, _, _) => {
+                self.index_reg = nnn as u16
+            }
+
+            // JP V0, addr (Bnnn): JUMP to addr + V0
+            (0xB, _, _, _) => {
+                self.pc = self.v_reg[0] as u16 + nnn as u16;
+            }
+
+            // RND Vx, byte (Cxnn): SET Vx = random byte AND nnn
+            (0xC, _, _, _) => {
+                let mut rng:u8 = rand::thread_rng();
+                self.v_reg[x] = rng & nnn as u8;
+            }
+
+            // Unknown
+            (_, _, _, _) => {
+                println!("Unknown opcode: 0x{:04X}", op);
+            }
+        }
     }
 }
 
