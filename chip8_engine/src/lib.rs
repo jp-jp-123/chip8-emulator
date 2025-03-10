@@ -360,8 +360,8 @@ impl Chip8 {
                 self.v_reg[x] = self.delay_timer;
             }
 
-            // LD Vx, K (Fx08): Wait for key press and SET Vx to the value of the key pressed
-            (0xF, _, 0, 8) => {
+            // LD Vx, K (Fx0A): Wait for key press and SET Vx to the value of the key pressed
+            (0xF, _, 0, 0xA) => {
                 let mut pressed: bool = false;
 
                 for keys in 0..KEYPAD_SIZE {
@@ -417,6 +417,7 @@ impl Chip8 {
             // LD [I], Vx (Fx55): STORE V0 to Vx in memory starting from address I
             (0xF, _, 5, 5) => {
                 let start_idx = self.index_reg as usize;
+                
                 for index in 0..=x{
                     self.memory[index + start_idx] = self.v_reg[index];
                 }
@@ -424,7 +425,7 @@ impl Chip8 {
 
             // LD Vx, [I] (Fx65): SET/LOAD V0 to Vx from memory starting from address I
             (0xF, _, 6, 5) => {
-                let start_idx = self.v_reg[0] as usize;
+                let start_idx = self.index_reg as usize;
 
                 for index in 0..=x{
                     self.v_reg[index] = self.memory[index + start_idx];
