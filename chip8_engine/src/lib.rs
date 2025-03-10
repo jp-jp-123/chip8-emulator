@@ -71,6 +71,21 @@ impl Chip8 {
         }
     }
 
+    pub fn get_display(&self) -> &[u8] {
+        &self.screen
+    }
+
+    pub fn set_keypad(&mut self, idx: usize, key_down: bool){
+        self.keypad[idx] = key_down
+    }
+
+    pub fn load_rom(&mut self, rom_data: &[u8]){
+        let start_addr = START_ADDRESS as usize;
+        let end_addr = start_addr + rom_data.len();
+
+        self.memory[start_addr..end_addr].copy_from_slice(rom_data);
+    }
+
     fn push(&mut self, val: u16){
         self.stack[self.stack_pointer as usize] = val;
         self.stack_pointer += 1;
@@ -79,21 +94,6 @@ impl Chip8 {
     fn pop(&mut self) -> u16{
         self.stack_pointer -= 1;
         self.stack[self.stack_pointer as usize]
-    }
-
-    // vecDeque for stack, just in case they actually work in WebAssembly
-    fn stdPush(&mut self, val: u16){
-        let mut mem_stack: VecDeque<u16> = VecDeque::from(self.stack);
-        mem_stack.push_back(val); 
-
-        self.stack.copy_from_slice(&mem_stack.make_contiguous()[..STACK_REG_SIZE]);
-    }
-
-    fn stdPop(&mut self){
-        let mut mem_stack: VecDeque<u16> = VecDeque::from(self.stack);
-        mem_stack.pop_back(); 
-
-        self.stack.copy_from_slice(&mem_stack.make_contiguous()[..STACK_REG_SIZE]);
     }
 
     pub fn tick(&mut self){
