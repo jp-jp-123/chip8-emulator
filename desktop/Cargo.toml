@@ -1,0 +1,8 @@
+[package]
+name = "desktop"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chip8_engine = { path = "../chip8_engine" }
+sdl2 = "0.35.2"
