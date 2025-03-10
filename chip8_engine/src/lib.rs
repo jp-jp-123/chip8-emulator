@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use rand::Rng;
 
 const SCREEN_WIDTH: usize = 64;
