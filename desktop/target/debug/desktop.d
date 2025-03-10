@@ -1,0 +1,1 @@
+C:\Users\user\Documents\GitHub\chip8-emulator\desktop\target\debug\desktop.exe: C:\Users\user\Documents\GitHub\chip8-emulator\chip8_engine\src\lib.rs C:\Users\user\Documents\GitHub\chip8-emulator\desktop\src\main.rs
