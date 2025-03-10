@@ -74,6 +74,7 @@ fn main() {
         for _ in 0..TICKS_PER_FRAME{
             chip8.tick();
         }
+        chip8.timers();
         draw_screen(&chip8, &mut canvas);
     }
 }
