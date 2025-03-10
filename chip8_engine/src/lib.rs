@@ -1,7 +1,9 @@
 use rand::Rng;
 
-const SCREEN_WIDTH: usize = 64;
-const SCREEN_HEIGHT: usize = 32;
+pub const SCREEN_WIDTH: usize = 64;
+pub const SCREEN_HEIGHT: usize = 32;
+
+const VERBOSE: bool = false;
 
 const RAM_SIZE: usize = 4096;
 const V_REG_SIZE: usize = 16;
@@ -163,7 +165,7 @@ impl Chip8 {
             }
 
             // JMP NNN (1nnn): JUMP to address nnn
-            (0, _, _, _) => {
+            (1, _, _, _) => {
                 self.pc = nnn as u16;
             }
 
@@ -206,8 +208,8 @@ impl Chip8 {
                 // self.v_reg[x] = self.v_reg[x].wrapping_add(nn);                      // silent wrap around on overflow
                 let (sum, overflow) = self.v_reg[x].overflowing_add(nn);      // wrap around on overflow and notifies if it happens
 
-                if overflow {
-                    print!("OVERFLOW: opcode 7xnn, x={}, nn={}", x, nn);
+                if overflow && VERBOSE{
+                    println!("OVERFLOW: opcode 7xnn, x={}, nn={}", x, nn);
                 }
 
                 self.v_reg[x] = sum
@@ -294,10 +296,9 @@ impl Chip8 {
 
             // RND Vx, byte (Cxnn): SET Vx = random byte AND nnn
             (0xC, _, _, _) => {
-                let mut rng = rand::thread_rng();
-                let random: u8 = rng.r#gen();                   // r#gen instead of gen since rust has a keyword gen https://doc.rust-lang.org/edition-guide/rust-2024/gen-keyword.html
+                let rng: u8 = rand::thread_rng().r#gen();   // r#gen instead of gen since rust has a keyword gen https://doc.rust-lang.org/edition-guide/rust-2024/gen-keyword.html
 
-                self.v_reg[x] = random & nnn as u8;
+                self.v_reg[x] = rng & nn;
             }
 
             // DRW Vx, Vy, nibble (Dxyn): DRAW n-byte sprite starting at I (Vx, Vy), set VF = collision
@@ -390,8 +391,8 @@ impl Chip8 {
             (0xF, _, 1, 0xE) => {
                 let (sum, overflow) = self.index_reg.overflowing_add(self.v_reg[x] as u16);
 
-                if overflow {
-                    print!("OVERFLOW: opcode Fx1E, x={}", x);
+                if overflow && VERBOSE{
+                    println!("OVERFLOW: opcode Fx1E, x={}", x);
                 }
 
                 self.index_reg = sum;
@@ -422,7 +423,7 @@ impl Chip8 {
             }
 
             // LD Vx, [I] (Fx65): SET/LOAD V0 to Vx from memory starting from address I
-            (0xF, _, 6, 6) => {
+            (0xF, _, 6, 5) => {
                 let start_idx = self.v_reg[0] as usize;
 
                 for index in 0..=x{
