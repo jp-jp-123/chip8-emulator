@@ -332,6 +332,7 @@ impl Chip8 {
                         let screen_idx: usize = x + (SCREEN_WIDTH * y);                     // Flip the Vf flag if there is a collision (or if the sprite pixel erased the current pixel)
                         self.v_reg[0xF] |= sprite_pixel & self.screen[screen_idx];
                         
+                        
                         self.screen[screen_idx] ^= sprite_pixel                             // Flip the pixel on the screen
                     }
                 }
@@ -364,7 +365,7 @@ impl Chip8 {
             (0xF, _, 0, 0xA) => {
                 let mut pressed: bool = false;
 
-                for keys in 0..KEYPAD_SIZE {
+                for keys in 0..self.keypad.len() {
                     if self.keypad[keys] {
                         self.v_reg[x] = keys as u8;
                         pressed = true;
@@ -417,7 +418,7 @@ impl Chip8 {
             // LD [I], Vx (Fx55): STORE V0 to Vx in memory starting from address I
             (0xF, _, 5, 5) => {
                 let start_idx = self.index_reg as usize;
-                
+
                 for index in 0..=x{
                     self.memory[index + start_idx] = self.v_reg[index];
                 }
