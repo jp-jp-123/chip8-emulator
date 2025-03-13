@@ -41,7 +41,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     // Instance of Chip8
-    let mut chip8: Chip8 = Chip8::new();
+    let mut chip8: Chip8 = Chip8::new(false);
 
     // Get and Load ROM to Chip8
     let mut rom: File = File::open(&args[1]).expect("Unable to open file");
