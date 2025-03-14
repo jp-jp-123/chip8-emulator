@@ -9,8 +9,10 @@ js-sys = "^0.3.77"
 wasm-bindgen = "^0.2.100"
 
 [dependencies.web-sys]
-web-sys = "0.3.77"
-features = []
+version = "^0.3.46"
+features = [
+    "KeyboardEvent"
+]
 
 [lib]
 crate-type = ["cdylib"]
