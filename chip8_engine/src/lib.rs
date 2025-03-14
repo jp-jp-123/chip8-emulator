@@ -51,10 +51,13 @@ pub struct Chip8{
 }
 
 impl Chip8 {
-    pub fn new(reset: bool) -> Self{
-        let mut init = Self {
+    pub fn new() -> Self{
+        let mut ram: [u8; 4096] = [0u8; RAM_SIZE];
+        ram[..FONTSET_SIZE].copy_from_slice(&FONTSET);
+
+        Self {
             pc: START_ADDRESS, 
-            memory: [0; RAM_SIZE], 
+            memory: ram, 
             v_reg: [0; V_REG_SIZE], 
             index_reg: 0, 
             stack: [0; STACK_REG_SIZE],
@@ -66,14 +69,24 @@ impl Chip8 {
             screen: [0; SCREEN_WIDTH * SCREEN_HEIGHT], 
             
             keypad: [false; KEYPAD_SIZE]
-        };
-
-        if !reset{
-            init.memory[..FONTSET_SIZE].copy_from_slice(&FONTSET);
         }
-
-        return init;
     }
+
+    pub fn reset(&mut self) {
+            self.pc = START_ADDRESS;
+            self.memory = [0; RAM_SIZE]; 
+            self.v_reg = [0; V_REG_SIZE];
+            self.index_reg = 0;
+            self.stack = [0; STACK_REG_SIZE];
+            self.stack_pointer = 0;
+            
+            self.sound_timer = 0;
+            self.delay_timer = 0; 
+            
+            self.screen = [0; SCREEN_WIDTH * SCREEN_HEIGHT];
+            
+            self.keypad = [false; KEYPAD_SIZE];
+    } 
 
     pub fn get_display(&self) -> &[u8] {
         &self.screen
