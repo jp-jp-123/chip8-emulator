@@ -1,21 +1,35 @@
 use chip8_engine::*;
 use wasm_bindgen::prelude::*;
 
-use web_sys::KeyboardEvent;
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
+use wasm_bindgen::JsCast;
 use js_sys::Uint8Array;
 
 #[wasm_bindgen]
 pub struct Chip8EngineWasm {
     chip8: Chip8,
+    ctx: CanvasRenderingContext2d,  // For JS Canvas object
 }
 
 #[wasm_bindgen]
 impl Chip8EngineWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self{
-            chip8: Chip8::new(),
-        }
+    pub fn new() -> Result<Chip8EngineWasm, JsValue> {
+        let chip8 = Chip8::new();
+
+        let doc: web_sys::Document = web_sys::window().unwrap().document().unwrap();
+        let canvas: web_sys::Element = doc.get_element_by_id("canvas").unwrap();
+        let canvas: HtmlCanvasElement = canvas.dyn_into()
+                                                .map_err(|_| ())
+                                                .unwrap();
+
+        let ctx = canvas.get_context("2d")
+                        .unwrap()
+                        .unwrap()
+                        .dyn_into::<CanvasRenderingContext2d>()
+                        .unwrap();
+
+        Ok (Chip8EngineWasm { chip8, ctx })
     }
 
     #[wasm_bindgen]
@@ -46,8 +60,21 @@ impl Chip8EngineWasm {
         self.chip8.load_rom(&rom.to_vec());
     }
 
+    #[wasm_bindgen]
     pub fn draw_screen(&mut self, scale: usize){
-        //TODO
+        let display = self.chip8.get_display();
+
+        for i in 0..(SCREEN_WIDTH * SCREEN_HEIGHT){
+            if 1 == display[i]{
+                let x = i % SCREEN_WIDTH;
+                let y = i / SCREEN_WIDTH;
+
+                self.ctx.fill_rect( (x * scale) as f64, 
+                                    (y * scale) as f64, 
+                                    scale as f64, 
+                                    scale as f64 );
+            }
+        }
     }
 }
 

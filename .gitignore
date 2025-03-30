@@ -1,3 +1,4 @@
 wasm/target
 desktop/target
 chip8_engine/target
+.vscode
